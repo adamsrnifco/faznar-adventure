@@ -1,0 +1,296 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faznar's Phishing Adventure</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-image: url('https://c4.wallpaperflare.com/wallpaper/293/672/961/pixel-art-waterfall-artwork-digital-art-wallpaper-preview.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: #e2e8f0;
+      font-family: 'Arial', sans-serif;
+    }
+    #game-container {
+      background-color: rgba(26, 32, 44, 0.9); /* Semi-transparent background for readability */
+    }
+    .choice-button {
+      transition: transform 0.2s;
+    }
+    .choice-button:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+  <div id="game-container" class="max-w-2xl w-full p-6 bg-gray-800 rounded-lg shadow-lg">
+    <h1 id="title" class="text-3xl font-bold text-center mb-6">Faznar's Phishing Adventure</h1>
+    <p id="story-text" class="text-lg mb-6"></p>
+    <div id="choices" class="flex flex-col gap-4"></div>
+  </div>
+
+  <script>
+    const scenes = {
+      start: {
+        text: "The wizard Faznar journeys to Pilfer Pond, renowned for its magical fish that bestow wisdom. He stops at Patti’s By the Pond for supplies. A polished merchant, cloaked in fine silks, presents a glowing scroll promising 'legendary bait' for a modest fee, requiring only your wizard’s mark to seal the deal. A local vendor offers standard bait at a fair price, while a hooded apprentice whispers of a free bait sample if you visit their stall. Which do you choose?",
+        choices: [
+          { text: "Sign the scroll for the legendary bait", next: "scroll_sign" },
+          { text: "Buy standard bait from the local vendor", next: "standard_bait" },
+          { text: "Visit the apprentice’s stall for a free sample", next: "scroll_sample" }
+        ]
+      },
+      scroll_sign: {
+        text: "The scroll’s elegant script requests your spellbook’s secret code to 'bind' the bait’s magic, claiming it’s a tradition of the Arcane Guild. The merchant offers a gleaming enchanted rod as a loyalty gift, asking for your wizard’s mark instead. You notice the scroll’s seal flickers slightly. Do you provide the code, take the bait without the code, or accept the rod for your mark?",
+        choices: [
+          { text: "Enter the spellbook code to bind the bait", next: "scroll_code" },
+          { text: "Take the bait without entering the code", next: "scroll_decline" },
+          { text: "Accept the enchanted rod for your wizard’s mark", next: "scroll_rod" }
+        ]
+      },
+      scroll_sample: {
+        text: "The apprentice, with a warm smile, offers a radiant bait sample but asks you to whisper your spellbook’s code to 'attune' it to your magic. The stall is adorned with arcane symbols, but the apprentice’s robe lacks a guild crest. Do you whisper the code or politely decline the sample?",
+        choices: [
+          { text: "Whisper the code to attune the sample", next: "sample_code" },
+          { text: "Decline the sample and leave", next: "scroll_decline" }
+        ]
+      },
+      scroll_code: {
+        text: "The merchant bows deeply and vanishes in a shimmer, taking your spellbook code. Your magic falters as your spells are stolen. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      scroll_rod: {
+        text: "The enchanted rod pulses, then drains your wizard’s mark, sapping your power. The merchant is gone. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      sample_code: {
+        text: "The sample glows brightly before dissolving, and the apprentice vanishes with your spellbook code. Your magic weakens. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      scroll_decline: {
+        text: "With standard bait, you reach Pilfer Pond’s misty shores. A lagoon creature, adorned with pearls, offers to guide you to a hidden fishing spot if you share your wizard’s mark to 'join its circle of trust.' It presents a flawless fish scale as a token. The creature’s voice is soothing, but its eyes dart nervously. Do you share your mark, fish alone, or examine the scale closely?",
+        choices: [
+          { text: "Share your wizard’s mark to join the circle", next: "pond_mark" },
+          { text: "Fish alone in the open pond", next: "pond_alone" },
+          { text: "Examine the fish scale closely", next: "pond_scale" }
+        ]
+      },
+      standard_bait: {
+        text: "You purchase standard bait and arrive at Pilfer Pond. A seasoned fisherman, with a weathered map, offers to share the location of a secret cove if you provide an ancient spell as a 'bond of camaraderie.' His map bears intricate details, but he hesitates when you ask about his origins. Do you share the spell, fish without the map, or offer a harmless cantrip to gauge his intent?",
+        choices: [
+          { text: "Share an ancient spell for the map", next: "bait_spell" },
+          { text: "Fish without the map in the open pond", next: "bait_decline" },
+          { text: "Offer a harmless cantrip to test him", next: "bait_fake" }
+        ]
+      },
+      bait_spell: {
+        text: "The fisherman nods approvingly, takes your spell, and vanishes, leaving a blank parchment. Your magic feels compromised. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      bait_fake: {
+        text: "The fisherman’s eyes narrow at your cantrip, and he casts a subtle hex, draining your magic before disappearing. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      bait_decline: {
+        text: "You catch a small magical fish in the open pond. A mystical raven perches nearby, offering to lead you to a legendary fish if you inscribe your wizard’s mark on its enchanted feather. Its plumage shimmers with arcane energy, but its beak twitches oddly. A cloaked hermit suggests sharing a minor spell for the raven’s trust instead. Do you inscribe your mark, share a minor spell, or ignore them both?",
+        choices: [
+          { text: "Inscribe your wizard’s mark on the feather", next: "raven_mark" },
+          { text: "Share a minor spell with the raven", next: "raven_spell" },
+          { text: "Ignore the raven and hermit", next: "raven_ignore" }
+        ]
+      },
+      pond_mark: {
+        text: "The lagoon creature’s pearls glow as it accepts your mark, then vanishes, draining your magical aura. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      pond_scale: {
+        text: "The scale feels unnaturally light and fades under scrutiny. The creature retreats, muttering. You’ve avoided a trap but must proceed alone. Do you fish in the open pond or explore a glowing grove nearby?",
+        choices: [
+          { text: "Fish in the open pond", next: "pond_alone" },
+          { text: "Explore the glowing grove", next: "grove_explore" }
+        ]
+      },
+      pond_alone: {
+        text: "You catch a glowing fish under the twilight. A hooded figure, claiming to be a retired mage from the Arcane Council, offers a fishing charm said to attract legendary fish in exchange for your ancient spell. Their voice is calm, but their sigil is slightly misaligned. A sprite flutters by, suggesting a minor charm as a safer trade. Do you trade the spell, offer a minor charm, or cast a protection ward?",
+        choices: [
+          { text: "Trade your ancient spell for the charm", next: "pond_trade" },
+          { text: "Offer a minor charm to the figure", next: "pond_charm" },
+          { text: "Cast a protection ward and decline", next: "pond_protect" }
+        ]
+      },
+      grove_explore: {
+        text: "The grove reveals a crystalline altar that promises enhanced fishing luck if you etch your wizard’s mark into its surface. It radiates warmth, but the air feels heavy with unspoken magic. Do you etch your mark or return to the pond?",
+        choices: [
+          { text: "Etch your wizard’s mark into the altar", next: "grove_altar" },
+          { text: "Return to the pond to fish", next: "pond_alone" }
+        ]
+      },
+      pond_trade: {
+        text: "The figure accepts your spell with a smile and vanishes, leaving a dull trinket. Your magic feels stolen. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      pond_charm: {
+        text: "The sprite giggles as the figure takes your minor charm, draining your magic. They were working together. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      pond_protect: {
+        text: "Your ward reveals the figure as an illusion, which dissipates. You catch a legendary fish that pulses with wisdom. Your journey continues.",
+        choices: [
+          { text: "Proceed to the final challenge", next: "final_challenge" }
+        ]
+      },
+      grove_altar: {
+        text: "The altar hums, absorbing your wizard’s mark and unleashing a curse that saps your power. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      raven_mark: {
+        text: "The raven’s feather glows as it accepts your mark, then soars away, stealing your magic. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      raven_spell: {
+        text: "The hermit smirks as the raven takes your minor spell, using it to weaken your defenses. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      raven_ignore: {
+        text: "Ignoring the raven and hermit, you spot a shimmering cave by the pond. Inside, a glowing orb offers to amplify your fishing skills if you whisper your spellbook’s code to 'unlock its potential.' Its light is mesmerizing, but the cave’s walls pulse unevenly. Do you whisper the code or leave the cave?",
+        choices: [
+          { text: "Whisper the spellbook code to the orb", next: "cave_code" },
+          { text: "Leave the cave and fish elsewhere", next: "cave_leave" }
+        ]
+      },
+      cave_code: {
+        text: "The orb hums, absorbs your code, and vanishes, locking your spellbook. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      cave_leave: {
+        text: "You leave the cave and fish under the stars, catching a radiant fish that boosts your magic. Your journey continues.",
+        choices: [
+          { text: "Proceed to the final challenge", next: "final_challenge" }
+        ]
+      },
+      final_challenge: {
+        text: "As you prepare to depart Pilfer Pond, a spectral fish rises from the water, claiming to be the pond’s ancient guardian. It offers ultimate wisdom in exchange for your master spell, promising to safeguard it forever. Its scales shimmer perfectly, but its voice carries a faint echo. Do you share the spell or banish it with a ward?",
+        choices: [
+          { text: "Share your master spell with the guardian", next: "fish_spell" },
+          { text: "Banish the fish with a protective ward", next: "fish_banish" }
+        ]
+      },
+      fish_spell: {
+        text: "The spectral fish gleams, takes your master spell, and dissolves, leaving your magic depleted. You’ve been phished!",
+        choices: [],
+        outcome: "failure"
+      },
+      fish_banish: {
+        text: "Your ward shatters the fish’s illusion, revealing its phishing nature. You depart Pilfer Pond with your magic intact and wisdom earned. You’ve thwarted all phishing attempts!",
+        choices: [],
+        outcome: "success"
+      },
+      failure: {
+        text: "Oh no, Faznar! You fell for a phishing scam, losing precious magical secrets. Phishing scams trick you into sharing sensitive information. To protect yourself: Never share personal details with unverified sources, even if they seem legitimate. Look for subtle red flags like inconsistent details, overly polished offers, or odd behaviors. Use strong, unique passwords, enable two-factor authentication, and always verify identities.",
+        choices: []
+      },
+      success: {
+        text: "Well done, Faznar! You navigated Pilfer Pond’s dangers and protected your magic from phishing scams. To spot phishing: Scrutinize offers for misspellings, vague credentials, or suspicious phrasing. Verify identities through trusted channels before sharing sensitive information. Trust your instincts—if an offer feels too perfect or slightly off, like a flawless scale or flickering seal, it’s likely a scam.",
+        choices: []
+      }
+    };
+
+    let currentScene = "start";
+
+    function displayScene() {
+      const scene = scenes[currentScene];
+      document.getElementById("story-text").textContent = scene.text;
+      const choicesDiv = document.getElementById("choices");
+      choicesDiv.innerHTML = "";
+
+      if (scene.choices.length === 0) {
+        if (currentScene === "success") {
+          const drawingButton = document.createElement("a");
+          drawingButton.textContent = "Click Here to Enter Drawing";
+          drawingButton.href = "";
+          drawingButton.className = "choice-button bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center";
+          choicesDiv.appendChild(drawingButton);
+        } else {
+          const restartButton = document.createElement("button");
+          restartButton.textContent = "Start Over";
+          restartButton.className = "choice-button bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700";
+          restartButton.onclick = () => {
+            currentScene = "start";
+            displayScene();
+          };
+          choicesDiv.appendChild(restartButton);
+        }
+      } else {
+        scene.choices.forEach(choice => {
+          const button = document.createElement("button");
+          button.textContent = choice.text;
+          button.className = "choice-button bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700";
+          button.onclick = () => {
+            currentScene = choice.next;
+            if (scenes[currentScene].outcome) {
+              currentScene = scenes[currentScene].outcome;
+            }
+            displayScene();
+          };
+          choicesDiv.appendChild(button);
+        });
+      }
+    }
+
+    displayScene();
+  </script>
+</body>
+</html>
